@@ -281,7 +281,7 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
         self.Functions.UpdatePlayerData()
     end
 
-    -- If you add cash, it now should be added as a item instead
+    -- If you add cash, it now should be added as a item
     function self.Functions.AddMoney(moneytype, amount, reason)
         reason = reason or 'unknown'
         moneytype = moneytype:lower()
@@ -290,11 +290,10 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
 
         if moneytype == 'cash' then
 			self.Functions.AddItem('cash', amount)
-		else
-			if self.PlayerData.money[moneytype] ~= nil then
-				self.PlayerData.money[moneytype] = self.PlayerData.money[moneytype]+amount
-			end
 		end
+        if not self.PlayerData.money[moneytype] then return false end
+        self.PlayerData.money[moneytype] = self.PlayerData.money[moneytype] + amount
+
         if not self.Offline then
             if amount > 100000 then
                 TriggerEvent('qb-log:server:CreateLog', 'playermoney', 'AddMoney', 'lightgreen', '**' .. GetPlayerName(self.PlayerData.source) .. ' (citizenid: ' .. self.PlayerData.citizenid .. ' | id: ' .. self.PlayerData.source .. ')** $' .. amount .. ' (' .. moneytype .. ') added, new ' .. moneytype .. ' balance: ' .. self.PlayerData.money[moneytype] .. ' reason: ' .. reason, true)
@@ -327,16 +326,15 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
             else
                 return false
             end
-        else
-            for _, mtype in pairs(QBCore.Config.Money.DontAllowMinus) do
-                if mtype == moneytype then
-                    if (self.PlayerData.money[moneytype] - amount) < 0 then
-                        return false
-                    end
+        end
+        for _, mtype in pairs(QBCore.Config.Money.DontAllowMinus) do
+            if mtype == moneytype then
+                if (self.PlayerData.money[moneytype] - amount) < 0 then
+                    return false
                 end
             end
-            self.PlayerData.money[moneytype] = self.PlayerData.money[moneytype] - amount
         end
+        self.PlayerData.money[moneytype] = self.PlayerData.money[moneytype] - amount
 
         if not self.Offline then
             if amount > 100000 then
@@ -370,16 +368,13 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
 			else
 				self.Functions.AddItem('cash', amount)
 			end
-		elseif self.PlayerData.money[moneytype] ~= nil then
-			self.PlayerData.money[moneytype] = amount
 		end
 
-        -- if not self.PlayerData.money[moneytype] then return false end
-        -- local difference = amount - self.PlayerData.money[moneytype]
-        -- self.PlayerData.money[moneytype] = amount
+        if not self.PlayerData.money[moneytype] then return false end
+        self.PlayerData.money[moneytype] = amount
+        local difference = amount - self.Functions.GetItemByName('cash').amount
 
         if not self.Offline then
-            self.Functions.UpdatePlayerData()
             TriggerEvent('qb-log:server:CreateLog', 'playermoney', 'SetMoney', 'green', '**' .. GetPlayerName(self.PlayerData.source) .. ' (citizenid: ' .. self.PlayerData.citizenid .. ' | id: ' .. self.PlayerData.source .. ')** $' .. amount .. ' (' .. moneytype .. ') set, new ' .. moneytype .. ' balance: ' .. self.PlayerData.money[moneytype] .. ' reason: ' .. reason)
             TriggerClientEvent('hud:client:OnMoneyChange', self.PlayerData.source, moneytype, math.abs(difference), difference < 0)
             TriggerClientEvent('QBCore:Client:OnMoneyChange', self.PlayerData.source, moneytype, amount, "set", reason)
