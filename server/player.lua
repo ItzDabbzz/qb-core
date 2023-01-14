@@ -286,11 +286,15 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
         moneytype = moneytype:lower()
         amount = tonumber(amount)
         if amount < 0 then return end
-        if not self.PlayerData.money[moneytype] then return false end
-        self.PlayerData.money[moneytype] = self.PlayerData.money[moneytype] + amount
 
+        if moneytype == 'cash' then
+			self.Functions.AddItem('cash', amount)
+		else
+			if self.PlayerData.money[moneytype] ~= nil then
+				self.PlayerData.money[moneytype] = self.PlayerData.money[moneytype]+amount
+			end
+		end
         if not self.Offline then
-            self.Functions.UpdatePlayerData()
             if amount > 100000 then
                 TriggerEvent('qb-log:server:CreateLog', 'playermoney', 'AddMoney', 'lightgreen', '**' .. GetPlayerName(self.PlayerData.source) .. ' (citizenid: ' .. self.PlayerData.citizenid .. ' | id: ' .. self.PlayerData.source .. ')** $' .. amount .. ' (' .. moneytype .. ') added, new ' .. moneytype .. ' balance: ' .. self.PlayerData.money[moneytype] .. ' reason: ' .. reason, true)
             else
@@ -301,6 +305,7 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
             TriggerEvent('QBCore:Server:OnMoneyChange', self.PlayerData.source, moneytype, amount, "add", reason)
         end
 
+        self.Functions.UpdatePlayerData()
         return true
     end
 
@@ -310,17 +315,29 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
         amount = tonumber(amount)
         if amount < 0 then return end
         if not self.PlayerData.money[moneytype] then return false end
-        for _, mtype in pairs(QBCore.Config.Money.DontAllowMinus) do
-            if mtype == moneytype then
-                if (self.PlayerData.money[moneytype] - amount) < 0 then
+
+        if moneytype == 'cash' then
+            if self.Functions.GetItemByName('cash') ~= nil then
+                if self.Functions.GetItemByName('cash').amount >= amount then
+                    self.Functions.RemoveItem('cash', amount)
+                else
                     return false
                 end
+            else
+                return false
             end
+        else
+            for _, mtype in pairs(QBCore.Config.Money.DontAllowMinus) do
+                if mtype == moneytype then
+                    if (self.PlayerData.money[moneytype] - amount) < 0 then
+                        return false
+                    end
+                end
+            end
+            self.PlayerData.money[moneytype] = self.PlayerData.money[moneytype] - amount
         end
-        self.PlayerData.money[moneytype] = self.PlayerData.money[moneytype] - amount
 
         if not self.Offline then
-            self.Functions.UpdatePlayerData()
             if amount > 100000 then
                 TriggerEvent('qb-log:server:CreateLog', 'playermoney', 'RemoveMoney', 'red', '**' .. GetPlayerName(self.PlayerData.source) .. ' (citizenid: ' .. self.PlayerData.citizenid .. ' | id: ' .. self.PlayerData.source .. ')** $' .. amount .. ' (' .. moneytype .. ') removed, new ' .. moneytype .. ' balance: ' .. self.PlayerData.money[moneytype] .. ' reason: ' .. reason, true)
             else
@@ -334,6 +351,7 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
             TriggerEvent('QBCore:Server:OnMoneyChange', self.PlayerData.source, moneytype, amount, "remove", reason)
         end
 
+        self.Functions.UpdatePlayerData()
         return true
     end
 
@@ -342,9 +360,22 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
         moneytype = moneytype:lower()
         amount = tonumber(amount)
         if amount < 0 then return false end
-        if not self.PlayerData.money[moneytype] then return false end
-        local difference = amount - self.PlayerData.money[moneytype]
-        self.PlayerData.money[moneytype] = amount
+
+        if moneytype == 'cash' then
+			if self.Functions.GetItemByName('cash') ~= nil then
+				local ca = self.Functions.GetItemByName('cash').amount
+				self.Functions.RemoveItem('cash', ca)
+				self.Functions.AddItem('cash', amount)
+			else
+				self.Functions.AddItem('cash', amount)
+			end
+		elseif self.PlayerData.money[moneytype] ~= nil then
+			self.PlayerData.money[moneytype] = amount
+		end
+
+        -- if not self.PlayerData.money[moneytype] then return false end
+        -- local difference = amount - self.PlayerData.money[moneytype]
+        -- self.PlayerData.money[moneytype] = amount
 
         if not self.Offline then
             self.Functions.UpdatePlayerData()
@@ -354,13 +385,19 @@ function QBCore.Player.CreatePlayer(PlayerData, Offline)
             TriggerEvent('QBCore:Server:OnMoneyChange', self.PlayerData.source, moneytype, amount, "set", reason)
         end
 
+        self.Functions.UpdatePlayerData()
         return true
     end
 
     function self.Functions.GetMoney(moneytype)
         if not moneytype then return false end
         moneytype = moneytype:lower()
-        return self.PlayerData.money[moneytype]
+        if moneytype == 'cash' then
+            local ca = self.Functions.GetItemByName('cash').amount
+            return ca
+        else
+            return self.PlayerData.money[moneytype]
+        end
     end
 
     function self.Functions.SetCreditCard(cardNumber)
